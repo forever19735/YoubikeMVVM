@@ -1,0 +1,6 @@
+framework module Pods_YoubikePractice {
+  umbrella header "Pods-YoubikePractice-umbrella.h"
+
+  export *
+  module * { export * }
+}

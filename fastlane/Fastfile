@@ -1,0 +1,81 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  def install_pods
+    cocoapods(
+      clean: true,
+      podfile: "Podfile",
+      try_repo_update_on_error: true
+    )
+  end
+ 
+  def build_notes(environment)
+    # Build the notes
+    commit = last_git_commit
+    notes = "#{environment} at #{Time.now.strftime('%d/%m/%Y')}."
+    notes.concat("\n")
+    notes.concat("##{ENV['CI_JOBENV_ID']}")
+    notes.concat("\n")
+    notes.concat("SHA: #{commit[:commit_hash]}")
+    return notes
+  end
+  
+  lane :lint do
+    swiftlint(
+      reporter: "html",
+      output_file: "fastlane/swiftlint.html"
+    )
+  end
+ 
+  lane :test do
+    install_pods()
+    scan(
+      scheme: ENV['XCODE_SCHEME'],
+      output_directory: "fastlane/tests",
+      clean: true
+    )
+  end
+ 
+  lane :develop do
+    install_pods()
+ 
+    # Incerment the buid number
+    increment_build_number(
+      build_number: ENV['CI_JOBENV_ID'],
+      xcodeproj: ENV['XCODE_PROJECT']
+    )
+ 
+    # Build
+    gym(
+      scheme: ENV['XCODE_SCHEME'],
+      configuration: ENV['DEVELOP_CONFIGURATION'],
+      export_method: ENV['DEVELOP_EXPORT_METHOD'],
+      export_xcargs: ENV['DEVELOP_XCARGS'],
+      silent: true,
+      clean: true
+    )
+ 
+    # Send to Fabric
+    crashlytics(
+      groups: ENV['DEVELOP_CRASHLYTICS_GROUPS'],
+      notes: build_notes("Develop")
+    )
+  end
+
+
+end
